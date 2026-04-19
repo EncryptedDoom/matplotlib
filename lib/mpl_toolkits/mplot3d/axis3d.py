@@ -160,6 +160,8 @@ class Axis(maxis.XAxis):
         self.axes._set_artist_props(self.pane)
         self.gridlines = art3d.Line3DCollection([])
         self.axes._set_artist_props(self.gridlines)
+        self.minor_gridlines = art3d.Line3DCollection([])
+        self.axes._set_artist_props(self.minor_gridlines)
         self.axes._set_artist_props(self.label)
         self.axes._set_artist_props(self.offsetText)
         # Need to be able to place the label at the correct location
@@ -677,6 +679,59 @@ class Axis(maxis.XAxis):
             self.gridlines.draw(renderer)
 
         renderer.close_group('grid3d')
+
+    @artist.allow_rasterization
+    def draw_minor_grid(self, renderer):
+        if not getattr(self.axes, '_draw_minor_grid', False):
+            return
+
+        renderer.open_group("minor_grid3d", gid=self.get_gid())
+
+        minor_locs = self.get_minorticklocs()
+        if len(minor_locs):
+            info = self._axinfo
+            index = info["i"]
+
+            mins, maxs, tc, highs = self._get_coord_info()
+            xlim, ylim, zlim = (self.axes.get_xbound(),
+                                self.axes.get_ybound(),
+                                self.axes.get_zbound())
+            data_mins = np.array([xlim[0], ylim[0], zlim[0]])
+            data_maxs = np.array([xlim[1], ylim[1], zlim[1]])
+            minmax = np.where(highs, data_maxs, data_mins)
+            maxmin = np.where(~highs, data_maxs, data_mins)
+
+            # Filter to ticks within view limits
+            vmin, vmax = self.get_view_interval()
+            minor_locs = [t for t in minor_locs if vmin <= t <= vmax]
+
+            if len(minor_locs):
+                xyz0 = np.tile(minmax, (len(minor_locs), 1))
+                xyz0[:, index] = minor_locs
+
+                lines = np.stack([xyz0, xyz0, xyz0], axis=1)
+                lines[:, 0, index - 2] = maxmin[index - 2]
+                lines[:, 2, index - 1] = maxmin[index - 1]
+
+                self.minor_gridlines.set_segments(lines)
+
+                # Default minor style: thinner and more transparent than major
+                gridinfo = info['grid']
+                minor_kw = {
+                    'color':     gridinfo['color'],
+                    'linewidth': gridinfo['linewidth'] * 0.5,
+                    'linestyle': gridinfo['linestyle'],
+                }
+                # Apply any user overrides from ax.grid(which='minor', ...)
+                minor_kw.update(getattr(self.axes, '_minor_grid_kwargs', {}))
+
+                self.minor_gridlines.set_color(minor_kw['color'])
+                self.minor_gridlines.set_linewidth(minor_kw['linewidth'])
+                self.minor_gridlines.set_linestyle(minor_kw['linestyle'])
+                self.minor_gridlines.do_3d_projection()
+                self.minor_gridlines.draw(renderer)
+
+        renderer.close_group('minor_grid3d')
 
     # TODO: Get this to work (more) properly when mplot3d supports the
     #       transforms framework.

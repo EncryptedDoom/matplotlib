@@ -501,6 +501,9 @@ class Axes3D(Axes):
             # Then gridlines
             for axis in self._axis_map.values():
                 axis.draw_grid(renderer)
+            # Then minor gridlines
+            for axis in self._axis_map.values():
+                axis.draw_minor_grid(renderer)
             # Then axes, labels, text, and ticks
             for axis in self._axis_map.values():
                 axis.draw(renderer)
@@ -1562,6 +1565,9 @@ class Axes3D(Axes):
         self._view_margin = 1/48  # default value to match mpl3.8
         self.autoscale_view()
 
+        self._draw_minor_grid = False
+        self._minor_grid_kwargs = {}
+        self.grid(mpl.rcParams['axes3d.grid'])
         self.grid(mpl.rcParams['axes3d.grid'])
 
     def _button_press(self, event):
@@ -2055,21 +2061,31 @@ class Axes3D(Axes):
     get_frame_on = None
     set_frame_on = None
 
-    def grid(self, visible=True, **kwargs):
-        """
-        Set / unset 3D grid.
+    def grid(self, visible=True, which='major', axis='both', **kwargs):
+       """
+       Set / unset 3D grid.
 
-        .. note::
+       .. note::
+           Currently, this function does not behave the same as
+           :meth:`matplotlib.axes.Axes.grid`, but it is intended to
+           eventually support that behavior.
 
-            Currently, this function does not behave the same as
-            `.axes.Axes.grid`, but it is intended to eventually support that
-            behavior.
-        """
-        # TODO: Operate on each axes separately
-        if len(kwargs):
-            visible = True
-        self._draw_grid = visible
-        self.stale = True
+       Parameters
+       ----------
+       visible : bool
+       which : {'major', 'minor', 'both'}
+       axis : {'both', 'x', 'y', 'z'}
+       **kwargs : Line properties forwarded to the grid lines.
+       """
+       if len(kwargs):
+           visible = True
+       if which in ('major', 'both'):
+           self._draw_grid = bool(visible)
+           self._major_grid_kwargs = kwargs
+       if which in ('minor', 'both'):
+           self._draw_minor_grid = bool(visible)
+           self._minor_grid_kwargs = kwargs
+       self.stale = True
 
     def tick_params(self, axis='both', **kwargs):
         """

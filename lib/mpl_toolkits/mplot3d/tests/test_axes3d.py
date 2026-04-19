@@ -50,6 +50,25 @@ def test_grid_off():
     ax.grid(False)
 
 
+def test_minor_grid_3d():
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter([1, 2, 3], [1, 2, 3], [1, 2, 3])
+
+    # Minor grid off by default
+    assert not ax._draw_minor_grid
+
+    # Enabling sets the flag and stores kwargs
+    ax.grid(which='minor', color='lightgrey', linewidth=0.3)
+    assert ax._draw_minor_grid
+    assert ax._minor_grid_kwargs['linewidth'] == 0.3
+
+    # Major grid unaffected
+    assert ax._draw_grid
+
+    plt.close(fig)
+
+
 @mpl3d_image_comparison(['invisible_ticks_axis.png'], style='mpl20')
 def test_invisible_ticks_axis():
     fig = plt.figure()
